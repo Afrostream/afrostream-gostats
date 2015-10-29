@@ -189,14 +189,16 @@ func makeGlobalStats() {
     log.Printf("RESULT OF KEYS session.* = %v", vals)
     if err == nil {
       for _, v := range vals {
-        value, err := redis.Int(redisConn.Do("TTL", v))
+        redisKey := "session." + v
+        value, err := redis.Int(redisConn.Do("TTL", redisKey))
         logOnError(err, "Failed to get TTL for a key on Redis")
         if value <= redisSessionTimeout {
-          _, err := redisConn.Do("DEL", v)
+          _, err := redisConn.Do("DEL", redisKey)
           logOnError(err, "Failed to DEL a key on Redis")
+          continue
         }
 
-        json_s, err := redis.String(redisConn.Do("GET", v))
+        json_s, err := redis.String(redisConn.Do("GET", redisKey))
         logOnError(err, "Failed to GET session on Redis")
         var s Session
         err = json.Unmarshal([]byte(json_s), &s)

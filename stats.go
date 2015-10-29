@@ -189,20 +189,22 @@ func makeGlobalStats() {
     log.Printf("RESULT OF KEYS session.* = %v", vals)
     if err == nil {
       for _, v := range vals {
-        redisKey := "session." + v
-        value, err := redis.Int(redisConn.Do("TTL", redisKey))
+        value, err := redis.Int(redisConn.Do("TTL", v))
         logOnError(err, "Failed to get TTL for a key on Redis")
+        log.Printf("rediskey is %s value is %d", v, value)
         if value <= redisSessionTimeout {
-          _, err := redisConn.Do("DEL", redisKey)
+          _, err := redisConn.Do("DEL", v)
           logOnError(err, "Failed to DEL a key on Redis")
           continue
         }
 
-        json_s, err := redis.String(redisConn.Do("GET", redisKey))
+        json_s, err := redis.String(redisConn.Do("GET", v))
         logOnError(err, "Failed to GET session on Redis")
         var s Session
         err = json.Unmarshal([]byte(json_s), &s)
         logOnError(err, "Failed to Unmarshal Json on GetUsers")
+
+        log.Printf("[s] is %v", s)
 
         if s.Bandwidth_current != 0 {
           var as *ASNStats
@@ -365,7 +367,10 @@ func decodeJson(msg []byte, db *geoip.GeoIP, db2 *geoip2.Reader) {
         }
         s.City = record.City.Names["fr"]
         if s.City == "" {
-          s.City = "None"
+          s.City = record.City.Names["en"]
+          if s.City == "" {
+            s.City = "None"
+          }
         }
 	log.Printf("record City names %v", record.City.Names)
         name, _ := db.GetName(s.Ip)
@@ -434,7 +439,7 @@ func decodeJson(msg []byte, db *geoip.GeoIP, db2 *geoip2.Reader) {
         }
       }
     case "buffering":
-      json_s, err := redis.String(redisConn.Do("GET", user_id_string))
+      json_s, err := redis.String(redisConn.Do("GET", redisKey))
       if err != nil {
         log.Printf("key doesn't exist in Redis")
       } else {
@@ -448,12 +453,12 @@ func decodeJson(msg []byte, db *geoip.GeoIP, db2 *geoip2.Reader) {
         logOnError(err, "Cannot serialize session with session %v", s)
         if err == nil {
           _, err = redisConn.Do("SET", redisKey, string(serialized))
-          _, err = redisConn.Do("EXPIRE", user_id_string, redisRealSessionTimeoutString)
+          _, err = redisConn.Do("EXPIRE", redisKey, redisRealSessionTimeoutString)
           logOnError(err, "Failed to set user_id on Redis")
         }
       }
     case "ping":
-      status, err := redisConn.Do("EXPIRE", user_id_string, redisRealSessionTimeoutString)
+      status, err := redisConn.Do("EXPIRE", redisKey, redisRealSessionTimeoutString)
       log.Printf("err = %v, status = %v",  err, status)
   }
 }

@@ -1,0 +1,12 @@
+* {
+  font-size: 10px;
+}
+
+#chartdiv {
+  width: 100%;
+  height: 500px;
+}
+
+.array {
+  padding-top: 30px;
+}
